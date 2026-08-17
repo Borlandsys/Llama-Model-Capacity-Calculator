@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Model Capacity Calculator</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --primary: #3b82f6;
+            --accent: #8b5cf6;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --success: #10b981;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+        }
+
+        header {
+            text-align: center;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 20px;
+        }
+
+        h1 { margin: 0; font-size: 2rem; background: linear-gradient(to right, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        p.subtitle { color: var(--text-muted); margin-top: 5px; }
+
+        .input-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+
+        @media (max-width: 768px) {
+            .input-group { grid-template-columns: 1fr; }
+        }
+
+        label {
+            display: block;
+            margin-bottom: 15px;
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .hardware-section {
+            background: #263345;
+            padding: 25px;
+            border-radius: 12px;
+        }
+
+        input[type=range] {
+            width: 100%;
+            margin: 10px 0 20px 0;
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+
+        .value-display {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--text-main);
+            display: flex;
+            align-items: baseline;
+            gap: 5px;
+        }
+        
+        .unit { font-size: 1rem; color: var(--text-muted); font-weight: normal; }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .result-card {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+
+        .result-card:hover { transform: translateY(-5px); background: rgba(59, 130, 246, 0.15); }
+
+        .result-title { color: var(--primary); font-size: 0.8rem; text-transform: uppercase; font-weight: bold; margin-bottom: 5px; }
+        .result-value { font-size: 1.8rem; font-weight: bold; }
+        .quant-badge { 
+            display: inline-block; 
+            background: var(--accent); 
+            color: white; 
+            padding: 2px 8px; 
+            border-radius: 4px; 
+            font-size: 0.7rem; 
+            margin-bottom: 5px;
+        }
+
+        .info-note {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 20px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Llama Model Capacity Calculator</h1>
+        <p class="subtitle">Estimate model size based on your VRAM and RAM limits.</p>
+    </header>
+
+    <div class="input-group">
+        <!-- GPU Input -->
+        <div class="hardware-section">
+            <label for="gpuRange">GPU VRAM (Video Memory)</label>
+            <input type="range" id="gpuRange" min="4" max="96" step="1" value="24">
+            <div class="value-display">
+                <span id="gpuValue">24</span>
+                <span class="unit">GB</span>
+            </div>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-top:10px;">
+                Used for high-speed inference. Includes ~2GB overhead.
+            </p>
+        </div>
+
+        <!-- System RAM Input -->
+        <div class="hardware-section">
+            <label for="ramRange">System RAM (CPU Memory)</label>
+            <input type="range" id="ramRange" min="8" max="256" step="4" value="32">
+            <div class="value-display">
+                <span id="ramValue">32</span>
+                <span class="unit">GB</span>
+            </div>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-top:10px;">
+                Slower but allows for massive models via offloading.
+            </p>
+        </div>
+    </div>
+
+    <!-- Results Section -->
+    <section class="results-grid">
+        
+        <!-- 4-bit GPU Result -->
+        <div class="result-card">
+            <span class="quant-badge">INT4 (Recommended)</span>
+            <div class="result-title">Max Model on GPU</div>
+            <div class="result-value" id="res-gpu-4bit">-- B</div>
+            <div style="font-size:0.8rem; color:#94a3b8">~50% RAM usage / Param</div>
+        </div>
+
+        <!-- 8-bit GPU Result -->
+        <div class="result-card">
+            <span class="quant-badge">INT8 (High Quality)</span>
+            <div class="result-title">Max Model on GPU</div>
+            <div class="result-value" id="res-gpu-8bit">-- B</div>
+            <div style="font-size:0.8rem; color:#94a3b8">~100% RAM usage / Param</div>
+        </div>
+
+        <!-- FP16 GPU Result -->
+        <div class="result-card">
+            <span class="quant-badge">FP16 (Training)</span>
+            <div class="result-title">Max Model on GPU</div>
+            <div class="result-value" id="res-gpu-fp16">-- B</div>
+            <div style="font-size:0.8rem; color:#94a3b8">~200% RAM usage / Param</div>
+        </div>
+
+        <!-- Full System Result -->
+        <div class="result-card" style="border-color: var(--success); background: rgba(16, 185, 129, 0.1);">
+            <span class="quant-badge" style="background: var(--success);">INT4 (Offload)</span>
+            <div class="result-title">Max System Total</div>
+            <div class="result-value" id="res-sys-4bit">-- B</div>
+            <div style="font-size:0.8rem; color:#94a3b8">Using CPU/RAM hybrid</div>
+        </div>
+
+    </section>
+
+    <p class="info-note">
+        *Calculations are approximate estimates for models like Llama 2/3, Mistral, and Gemma. 
+        Actual usage varies based on Context Window (KV Cache) size. We assume a standard overhead of ~2GB reserved for system operations.
+    </p>
+</div>
+
+<script>
+    // Elements
+    const gpuInput = document.getElementById('gpuRange');
+    const ramInput = document.getElementById('ramRange');
+    
+    const gpuValDisplay = document.getElementById('gpuValue');
+    const ramValDisplay = document.getElementById('ramValue');
+
+    const resGpu4bit = document.getElementById('res-gpu-4bit');
+    const resGpu8bit = document.getElementById('res-gpu-8bit');
+    const resGpuFp16 = document.getElementById('res-gpu-fp16');
+    const resSys4bit = document.getElementById('res-sys-4bit');
+
+    // Constants for Bytes per Parameter (approx)
+    const BYTES_PER_PARAM_4BIT = 0.52; // Includes overhead
+    const BYTES_PER_PARAM_8BIT = 1.0;  
+    const BYTES_PER_PARAM_FP16 = 2.0;  
+
+    // Overhead reserved for OS/Context
+    const GPU_OVERHEAD_GB = 2.0; 
+    const RAM_OVERHEAD_GB = 4.0; 
+
+    function calculate() {
+        // Get values
+        let gpuGB = parseFloat(gpuInput.value);
+        let ramGB = parseFloat(ramInput.value);
+
+        // Update Displays
+        gpuValDisplay.textContent = gpuGB;
+        ramValDisplay.textContent = ramGB;
+
+        // Logic: (Total Memory GB - Overhead) * 1024 / BytesPerParam = Billions of Params
+        
+        // 1. GPU Calculations
+        let usableGpu = Math.max(0, gpuGB - GPU_OVERHEAD_GB);
+        
+        let model4bit = (usableGpu * 1024) / BYTES_PER_PARAM_4BIT;
+        let model8bit = (usableGpu * 1024) / BYTES_PER_PARAM_8BIT;
+        let modelFp16 = (usableGpu * 1024) / BYTES_PER_PARAM_FP16;
+
+        // 2. System Calculation (Total VRAM + RAM)
+        let usableSys = Math.max(0, (gpuGB + ramGB) - RAM_OVERHEAD_GB);
+        let modelSys4bit = (usableSys * 1024) / BYTES_PER_PARAM_4BIT;
+
+        // Update DOM with formatting
+        resGpu4bit.textContent = formatB(model4bit);
+        resGpu8bit.textContent = formatB(model8bit);
+        resGpuFp16.textContent = formatB(modelFp16);
+        resSys4bit.textContent = formatB(modelSys4bit);
+    }
+
+    function formatB(num) {
+        if (num < 0) return "0";
+        // Round to nearest common model size logic for cleaner display
+        const rounded = Math.round(num * 10) / 10; 
+        return `${rounded} B`;
+    }
+
+    // Event Listeners
+    gpuInput.addEventListener('input', calculate);
+    ramInput.addEventListener('input', calculate);
+
+    // Initial run
+    calculate();
+</script>
+
+</body>
+</html>
